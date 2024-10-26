@@ -52,7 +52,20 @@ class ADLClassifier:
 
         return img.resize((new_width, new_height))
 
-    def encode_image(self, image_path: str) -> str:
+    def encode_image(self, img: Image.Image) -> str:
+        """Convert image to base64 string."""
+        # Resize image to have a maximum dimension of 1120
+        img_resized = self.resize_image(img, max_dim=1120)
+
+        # Convert image to bytes
+        buffered = BytesIO()
+        img_resized.save(buffered, format="PNG")
+        img_bytes = buffered.getvalue()
+
+        # Encode image to base64 string
+        return base64.b64encode(img_bytes).decode("utf-8")
+
+    def encode_image_from_path(self, image_path: str) -> str:
         """Convert image to base64 string."""
         with Image.open(image_path) as img:
             # Resize image to have a maximum dimension of 1120
