@@ -119,15 +119,27 @@ class ADLClassifier:
             - Require 4/5 therapists to agree on classification
             - Document key points of discussion
 
-        4. Have 3 different OTs critically evaluate the consensus classification:
-            - Challenge assumptions from initial classification
-            - Consider alternative interpretations
-            - Verify temporal consistency
-            - If they disagree with initial classification, return to step 2
+        4. Have 3 different OTs critically evaluate the consensus classification by challenging assumptions from 
+        initial classification, consider alternative interpretations, and verify temporal consistency. Document their findings.
+        If they disagree with the consensus classification, return to step 2.
 
         5. Confirm final classification matches one of the provided options. If not, return to step 2. Ensure all evidence aligns with chosen category.
 
-        6. Finally, state "The ADL/iADL being performed in the image is [final answer] because [provide detailed reasoning that references specific observations across multiple frames]."
+        **Required Response Format**:
+        You must respond with a valid Python dictionary object using this exact structure:
+        {{{{
+            "ADL": "string containing final classification",
+            "Reasoning": "string containing detailed reasoning with specific frame references",
+            "Intermediate_Steps": {{{{
+                "Environment_Analysis": "string describing step 1 findings",
+                "Action_Sequence": "string describing step 2 findings",
+                "OT_Discussion": "string describing step 3 findings",
+                "Critical_Evaluation": "string describing step 4 findings",
+                "Final_Verification": "string describing step 5 findings"
+            }}}}
+        }}}}
+
+        IMPORTANT: Your entire response must be a valid Python dictionary object. Do not include any text outside the Python dictionary structure.
         """
         return prompt
 
