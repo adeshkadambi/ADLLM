@@ -89,55 +89,45 @@ class ADLClassifier:
         After synthesizing context, classify the ADL being performed.
         """
         prompt = f"""
-        Problem Statement: 
+        **Problem Statement**: 
         {len(frame_descriptions)} frames were sampled from a first-person perspective video of an
         individual with stroke or spinal cord injury. The provided image grid shows the frames in 
-        sequence from top left to bottom right. What ADL or iADL is being performed in this video? 
+        sequence from top left to bottom right.
+
+        **Temporal Analysis**:
+        Here is a sythesis of observations from the frames:
+
+        {context_synthesis}
+
+        What ADL or iADL is being performed in this video? 
         
         Consider these options:
 
         {ADL_DESCRIPTIONS}
-        ---
-        Temporal Analysis:
-        Here is a sythesis of observations from the frames:
 
-        {context_synthesis}
-        ---
-        Solution Structure:
-        1. Environment and Object Analysis
-            - What environment is shown across frames?
-            - What key objects appear consistently?
-            - How are objects being used or manipulated?
-            - What hand positions and interactions are observed?
+        **Solution Structure**:
+        1. Begin the response by considering the environment, visible objects and their usage. 
+        What environment is shown across frames? What key objects appear consistently? 
+        How are objects being used or manipulated? What interactions are observed?
 
-        2. Activity Pattern Recognition
-            - What sequence of actions is visible across frames?
-            - Are there repetitive movements or consistent patterns?
-            - How do hand positions and object interactions change?
-            - Generate a list of possible activities based on these patterns.
+        2. Based on the context from Step 1 and the image grid, what sequence of actions is visible across frames?
+        Generate candidate ADLs or iADLs from the provided list based on these actions.
 
-        3. Initial Classification (5 OT Discussion)
-            Simulate a discussion among 5 occupational therapists:
+        3. Simulate a discussion among 5 occupational therapists to reach a consensus on the ADL classification:
             - Consider temporal progression across frames
             - Evaluate evidence for each possible ADL
             - Require 4/5 therapists to agree on classification
             - Document key points of discussion
 
-        4. Critical Review (3 OT Panel)
-            Have 3 different OTs scrutinize the evidence:
+        4. Have 3 different OTs critically evaluate the consensus classification:
             - Challenge assumptions from initial classification
             - Consider alternative interpretations
             - Verify temporal consistency
             - If they disagree with initial classification, return to step 2
 
-        5. Category Verification
-            - Confirm final classification matches one of the provided options
-            - If not, return to step 2
-            - Ensure all evidence aligns with chosen category
+        5. Confirm final classification matches one of the provided options. If not, return to step 2. Ensure all evidence aligns with chosen category.
 
-        6. Final Classification
-            State: "The ADL/iADL being performed in this sequence is [final answer] because 
-            [provide detailed reasoning that references specific observations across multiple frames]."
+        6. Finally, state "The ADL/iADL being performed in the image is [final answer] because [provide detailed reasoning that references specific observations across multiple frames]."
         """
         return prompt
 
