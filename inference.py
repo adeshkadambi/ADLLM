@@ -124,10 +124,11 @@ class ADLClassifier:
         initial classification, consider alternative interpretations, and verify temporal consistency. Document their findings.
         If they disagree with the consensus classification, return to step 2.
 
-        5. Confirm final classification matches one of the provided options. If not, return to step 2. Ensure all evidence aligns with chosen category.
+        5. Confirm final classification matches one of the provided options. 
+        If not, return to step 2. Ensure all evidence aligns with chosen category.
 
         **Required Response Format**:
-        You must respond with a valid Python dictionary object using this exact structure:
+        You must respond with a valid JSON object using this exact structure:
         {{{{
             "ADL": "string containing final classification",
             "Reasoning": "string containing detailed reasoning with specific frame references",
@@ -140,7 +141,7 @@ class ADLClassifier:
             }}}}
         }}}}
 
-        IMPORTANT: Your entire response must be a valid Python dictionary object. Do not include any text outside the Python dictionary structure.
+        IMPORTANT: Your entire response must be a valid JSON object. Do not include any text outside the JSON structure.
         """
         return prompt
 
