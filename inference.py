@@ -350,7 +350,7 @@ class ADLClassifier:
 
         # parse response
         try:
-            adl_classification = json.loads(adl_classification)["message"]["content"]
+            adl_classification = json.loads(adl_classification)
         except json.JSONDecodeError:
             print("Error parsing JSON response.")
             return {}
