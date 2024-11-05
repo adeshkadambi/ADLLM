@@ -1,7 +1,8 @@
 # mypy: ignore-errors
 
-import base64
 import math
+import json
+import base64
 from io import BytesIO
 
 import ollama
@@ -160,6 +161,25 @@ class ADLClassifier:
         )
         return response["message"]["content"]
 
+    def _json_model_response(
+        self, prompt: str, image_base64: str | None = None
+    ) -> dict:
+        if image_base64 is None:
+            message = {"role": "user", "content": prompt}
+        else:
+            message = {"role": "user", "content": prompt, "images": [image_base64]}
+
+        response = ollama.chat(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                message,
+            ],
+            options=self.kwargs,
+            format="json",
+        )
+        return response["message"]["content"]
+
     def _resize_image(self, img: Image.Image, max_dim: int = 1120):
         """
         Resize image to have a maximum dimension of max_dim.
@@ -301,7 +321,7 @@ class ADLClassifier:
         classification_prompt = self._create_adl_classification_prompt(
             frame_descriptions, context_synthesis
         )
-        classification_response = self._get_model_response(
+        classification_response = self._json_model_response(
             classification_prompt, grid_base64
         )
 
@@ -313,12 +333,13 @@ class ADLClassifier:
         sampled_frames: list[Image.Image],
         sampled_indices: list[int],
         total_frames: int,
-    ) -> tuple[str, Image.Image]:
+    ) -> dict:
         """
         Predict ADL based on sampled frames.
         """
         image_grid = self._create_image_grid(sampled_frames)
 
+        # get frame descriptions, synthesize context, and classify ADL
         frame_descriptions = self.analyse_frames(
             sampled_frames, sampled_indices, total_frames
         )
@@ -326,4 +347,15 @@ class ADLClassifier:
         adl_classification = self.classify_adl(
             frame_descriptions, context_synthesis, image_grid
         )
-        return adl_classification, image_grid
+
+        # parse response
+        try:
+            adl_classification = json.loads(adl_classification)["message"]["content"]
+        except json.JSONDecodeError:
+            print("Error parsing JSON response.")
+            return {}
+
+        # add image grid to response
+        adl_classification["Image_Grid"] = image_grid
+
+        return adl_classification
