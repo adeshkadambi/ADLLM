@@ -1,7 +1,4 @@
 ADL_DESCRIPTIONS: str = """
-    Problem Statement: 
-    What ADL or iADL is being performed in this sequence of video frames showing an individual with stroke or spinal cord injury? Consider these options:
-
     a. Feeding
        - Person in front of food/drink and actively eating
        - Look for: plates, utensils, food items, repetitive hand-to-mouth movements
