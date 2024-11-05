@@ -311,7 +311,7 @@ class ADLClassifier:
         sampled_frames: list[Image.Image],
         sampled_indices: list[int],
         total_frames: int,
-    ) -> str:
+    ) -> tuple[str, Image.Image]:
         """
         Predict ADL based on sampled frames.
         """
