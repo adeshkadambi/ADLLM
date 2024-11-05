@@ -3,6 +3,7 @@ import enum
 import random
 import concurrent.futures
 from pathlib import Path
+from collections.abc import Callable
 
 import cv2
 import numpy as np
@@ -12,7 +13,32 @@ from PIL import Image
 class SamplingStrategy(enum.StrEnum):
     UNIFORM = "uniform"
     RANDOM = "random"
-    SCENE_CHANGE = "scene_change"
+
+    def get_frame_indices(self, total_frames: int, num_frames: int) -> list[int]:
+        """Get frame indices based on the sampling strategy."""
+        if num_frames > total_frames:
+            raise ValueError(
+                f"Cannot sample {num_frames} frames from {total_frames} total frames"
+            )
+
+        strategies: dict[SamplingStrategy, Callable] = {
+            SamplingStrategy.UNIFORM: self._uniform_sampling,
+            SamplingStrategy.RANDOM: self._random_sampling,
+        }
+
+        return strategies[self](total_frames, num_frames)
+
+    @staticmethod
+    def _uniform_sampling(total_frames: int, num_frames: int) -> list[int]:
+        if num_frames == 1:
+            return [total_frames // 2]
+        return [
+            int(i * (total_frames - 1) / (num_frames - 1)) for i in range(num_frames)
+        ]
+
+    @staticmethod
+    def _random_sampling(total_frames: int, num_frames: int) -> list[int]:
+        return sorted(random.sample(range(total_frames), num_frames))
 
 
 def _convert_frame_to_pil(frame: np.ndarray) -> Image.Image:
@@ -23,23 +49,6 @@ def _convert_frame_to_pil(frame: np.ndarray) -> Image.Image:
 def _save_frame(frame: Image.Image, output_dir: Path, frame_number: int) -> None:
     """Save a single frame to disk."""
     frame.save(output_dir / f"frame_{frame_number:05d}.jpg", "JPEG")
-
-
-def _get_frame_indices(
-    total_frames: int, num_frames: int, method: SamplingStrategy
-) -> list[int]:
-    """Determine which frame indices to extract based on sampling method."""
-
-    if method == SamplingStrategy.UNIFORM:
-        if num_frames == 1:
-            return [total_frames // 2]
-        return [
-            int(i * (total_frames - 1) / (num_frames - 1)) for i in range(num_frames)
-        ]
-    elif method == SamplingStrategy.RANDOM:
-        return sorted(random.sample(range(total_frames), num_frames))
-
-    raise ValueError(f"Unknown sampling method: {method}")
 
 
 def _process_frame_batch(
@@ -69,7 +78,7 @@ def extract_frames(
     sampling_method: SamplingStrategy,
     num_frames: int,
     save_frames: bool = False,
-) -> list[Image.Image]:
+) -> tuple[list[Image.Image], list[int], int]:
     """
     Extract frames from a video file using specified sampling method.
 
@@ -81,6 +90,8 @@ def extract_frames(
 
     Returns:
         list of PIL Image objects
+        list of frame indices
+        total number of frames in the video
     """
     video_path = Path(path)
 
@@ -96,7 +107,7 @@ def extract_frames(
         )
 
     # Get frame indices based on sampling method
-    frame_indices = _get_frame_indices(total_frames, num_frames, sampling_method)
+    frame_indices = sampling_method.get_frame_indices(total_frames, num_frames)
 
     # Create output directory if saving frames
     output_dir = None
@@ -127,4 +138,4 @@ def extract_frames(
             frames.extend(future.result())
 
     cap.release()
-    return frames
+    return frames, frame_indices, total_frames
