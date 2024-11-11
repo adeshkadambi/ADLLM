@@ -1,7 +1,7 @@
 ADL_DESCRIPTIONS: str = """
 OPTION 1: FEEDING
    Description: 'Bringing food [or fluid] from the plate or cup to the mouth.'
-   Essential Components: person in front of food/drink and actively eating, plates, utensils, hand-to-mouth movements
+   Essential Components: person in the video is sitting at a table in front of a plate of food and holding a utensil.
 ---
 OPTION 2: FUNCTIONAL MOBILITY
    Description: 'Bed mobility, wheelchair use, and transfers).'
@@ -17,13 +17,16 @@ OPTION 4: COMMUNICATION MANAGEMENT
 ---
 OPTION 5: HOME MANAGEMENT
    Description: 'Activities related to the maintenance of a household, including cleaning, laundry, and household chores.'
-   Essential Components: person cleaning, doing laundry, or performing household chores, cleaning supplies, laundry items, household tools. If the person is holding clothes, they are doing laundry. If the person is holding a broom, mop, or vacuum, they are cleaning. If the person is holding a household tool, they are performing a household chore.
+   Essential Components: person cleaning, doing laundry, changing bedsheets, or performing household chores. 
+   Objects will include cleaning supplies, laundry items, clothes, household tools. The person will often be moving around the house and not in one place.
 ---
 OPTION 6: MEAL PREPARATION AND CLEANUP
    Description: 'Activities related to preparing and cleaning up after meals.'
-   Essential Components: person in the kitchen, cooking, dishwashing, food storage, cookware, food items, cleaning supplies, cooking actions (peeling, cutting, stovetop), cleaning actions (in front of sink).
+   Essential Components: person in the kitchen, cooking, cooking actions (peeling, cutting, stovetop), cleaning actions (washing dishes in front of sink).
+   Common Errors: If the person is eating or has food on a plate, they feeding. If the person is in the kitchen but not cooking or cleaning, they are not preparing or cleaning up after a meal.
 ---
 OPTION 7: LEISURE
    Description: 'Activities not fitting other categories.'
    Essential Components: in this particular dataset, leisure activities include watching TV with a remote in hand, playing video games, jigsaw puzzles, knitting, reading, and arts and crafts.
+   Common Errors: if the person is on the computer, phone, or tablet, they are not engaging in a leisure activity, this is communication management.
 """

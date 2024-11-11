@@ -42,7 +42,7 @@ class ADLClassifier:
         """Create prompt for analyzing individual frames."""
 
         prompt = f"""
-        You are analyzing frame {frame_number} of {total_frames} from a first-person perspective video.
+        You are analyzing frame {frame_number} of {total_frames} from a first-person perspective video captured using a head-mounted GoPro camera.
         Describe ONLY what you can directly observe in this single frame, without any interpretation:
 
         1. Static Elements
@@ -65,7 +65,7 @@ class ADLClassifier:
         - Do not connect observations between frames
         - Do not speculate about intent
 
-        Describe only what exists in this exact frame:
+        Describe only what exists in this exact frame by placing more emphasis on objects manipulated by the person:
         """
         return prompt
 
