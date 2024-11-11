@@ -3,18 +3,18 @@
 import math
 import json
 import base64
+import logging
 from io import BytesIO
 
 import ollama
 from PIL import Image
-from tqdm import tqdm
 
 from classes import ADL_DESCRIPTIONS
 
 
 class ADLClassifier:
 
-    def __init__(self, model: str = "x/llama3.2-vision", **kwargs) -> None:
+    def __init__(self, model: str = "llama3.2-vision:latest", **kwargs) -> None:
         self.model = model
         ollama.pull(self.model)
 
@@ -30,55 +30,66 @@ class ADLClassifier:
 
         self.kwargs = kwargs
 
+        # Set up logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        )
+        self.logger = logging.getLogger(__name__)
+
     @staticmethod
     def _create_frame_analysis_prompt(frame_number: int, total_frames: int) -> str:
+        """Create prompt for analyzing individual frames."""
+
         prompt = f"""
-        You are analyzing frame {frame_number} of {total_frames} from a video showing
-        an activity of daily living performed by someone with stroke or spinal cord injury.
-        The video is recorded using a head-mounted GoPro camera and shows a first-person perspective.
+        You are analyzing frame {frame_number} of {total_frames} from a first-person perspective video.
+        Describe ONLY what you can directly observe in this single frame, without any interpretation:
 
-        Provide a detailed observation focusing on:
+        1. Static Elements
+        - Room/location visible
+        - Furniture or fixtures present
+        - Objects visible in frame
 
-        1. Environment
-        - Identify the room or setting (e.g., kitchen, bathroom, bedroom)
-        - Note relevant fixtures or furniture
-        - Describe lighting and general layout
+        2. Person's Position
+        - Hand position
+        - Any object currently in hand
+        - Body position (if visible)
 
-        2. Objects and Equipment
-        - List visible objects
-        - Note any assistive devices or medical equipment
-        - Identify objects being actively used or manipulated
+        3. State of Objects
+        - Position of objects relative to person
+        - Whether objects are being actively manipulated
 
-        3. Hand and Body Position
-        - Describe hand placement and any object interactions
-        - Note grip patterns or types
-        - Describe body positioning relative to objects/surfaces
-        - Identify any compensatory movements or strategies
+        Important: 
+        - Do not make assumptions about activities
+        - Do not interpret purpose of objects
+        - Do not connect observations between frames
+        - Do not speculate about intent
 
-        4. Movements and Actions
-        - Describe any active movements or actions
-
-        Format your response as a clear, objective description without making assumptions about the overall activity. Focus on what you can directly observe in this specific frame.
-
-        Provide your observation:
+        Describe only what exists in this exact frame:
         """
         return prompt
 
     @staticmethod
     def _create_frame_context_synthesis(frame_descriptions: list[str]) -> str:
-        """
-        After getting individual frame descriptions, synthesize key patterns.
-        """
+        """After getting individual frame descriptions, synthesize key patterns."""
+
         prompt = f"""
-        Review these detailed observations from {len(frame_descriptions)} first-person perspective video frames:
+        **Review these {len(frame_descriptions)} frame descriptions and list:**
 
+        1. Constant Elements
+        - What objects remain in the same position across frames
+        - What environment features are consistent
+
+        2. Changes Between Frames
+        - What objects change position
+        - What hand positions change
+        - What new objects appear or disappear
+
+        Important: Only describe patterns that are explicitly mentioned in multiple frame descriptions.
+        Do not interpret these patterns yet.
+
+        **FRAME DESCRIPTIONS:**
         {frame_descriptions}
-
-        Provide a concise synthesis focusing on:
-        1. Consistent elements (objects, environment) across frames
-        2. Object interactions with hands across frames
-
-        Focus only on describing patterns and sequences objectively.
         """
         return prompt
 
@@ -86,62 +97,65 @@ class ADLClassifier:
     def _create_adl_classification_prompt(
         frame_descriptions: list[str], context_synthesis: str
     ) -> str:
-        """
-        After synthesizing context, classify the ADL being performed.
-        """
+        """Create prompt for classifying ADL based on frame descriptions and context synthesis."""
         prompt = f"""
         **Problem Statement**: 
-        {len(frame_descriptions)} frames were sampled from a first-person perspective video of an
-        individual with stroke or spinal cord injury. The provided image grid shows the frames in 
-        sequence from top left to bottom right.
+        You are classifying an activity from the following options based on these observations and image grid. The image grid
+        shows {len(frame_descriptions)} frames that were uniformly sampled from a video and arranged from top left to bottom right.
 
-        **Temporal Analysis**:
-        Here is a sythesis of observations from the frames:
-
-        {context_synthesis}
-
-        What ADL or iADL is being performed in this video? 
-        
-        Consider these options:
-
+        **Activity Options**:
         {ADL_DESCRIPTIONS}
 
+        **Frame Observations**:
+        {frame_descriptions}
+
+        **Temporal Analysis**:
+        {context_synthesis}
+
+        What activity is being performed in this video?
+
         **Solution Structure**:
-        1. Begin the response by considering the environment, visible objects and their usage. 
-        What environment is shown across frames? What key objects appear consistently? 
-        How are objects being used or manipulated? What interactions are observed?
+        1. Begin by listing ALL observable evidence across frames:
+        - Sustained actions/positions
+        - Object interactions
+        - Environmental context
+        - Changes or lack of changes between frames
 
-        2. Based on the context from Step 1 and the image grid, what sequence of actions is visible across frames?
-        Generate candidate ADLs or iADLs from the provided list based on these actions.
+        2. Compare evidence against EACH activity category's required criteria:
+        - Must check against ALL categories
+        - Document which criteria are met AND not met for each category
+        - Cannot skip categories even if one seems obvious
+        - When in doubt, classify based on confirmed actions, not potential actions
+        - Presence of objects alone does not indicate their use
+        - Document why each unselected category does not fit
 
-        3. Simulate a discussion among 5 occupational therapists to reach a consensus on the ADL classification:
-            - Consider temporal progression across frames
-            - Evaluate evidence for each possible ADL
-            - Require 4/5 therapists to agree on classification
-            - Document key points of discussion
+        Step 3: Confirm with expert opinion:
+        - Consult with 5 occupational therapists and reach a consensus on the ADL classification
+        - Document key points of discussion and reasoning
 
-        4. Have 3 different OTs critically evaluate the consensus classification by challenging assumptions from 
-        initial classification, consider alternative interpretations, and verify temporal consistency. Document their findings.
-        If they disagree with the consensus classification, return to step 2.
+        Step 4: Evaluate consensus classification:
+        - Have 3 different occupational therapists critically evaluate the classification
+        - Document their findings and any disagreements
 
-        5. Confirm final classification matches one of the provided options. 
-        If not, return to step 2. Ensure all evidence aligns with chosen category.
+        Step 5: Verify final classification:
+        - Confirm the final classification aligns with all evidence
+        - Ensure the chosen category is one of the provided options
 
         **Required Response Format**:
-        You must respond with a valid JSON object using this exact structure:
-        {{{{
-            "ADL": "string containing final classification",
+        Respond with a valid JSON object using this exact structure:
+        {{
+            "ADL": "one of FEEDING, FUNCTIONAL MOBILITY, GROOMING AND HEALTH MANAGEMENT, COMMUNICATION MANAGEMENT, HOME MANAGEMENT, MEAL PREPARATION AND CLEANUP, or LEISURE",
             "Reasoning": "string containing detailed reasoning with specific frame references",
-            "Intermediate_Steps": {{{{
+            "Activities": "string containing the sequence of actions observed",
+            "Tags": "list of tags describing key actions and active objects to support classification",
+            "Intermediate_Steps": {{
                 "Environment_Analysis": "string describing step 1 findings",
-                "Action_Sequence": "string describing step 2 findings",
+                "ADL_Comparison": "string describing step 2 findings",
                 "OT_Discussion": "string describing step 3 findings",
-                "Critical_Evaluation": "string describing step 4 findings",
+                "Expert_Evaluation": "string describing step 4 findings",
                 "Final_Verification": "string describing step 5 findings"
-            }}}}
-        }}}}
-
-        IMPORTANT: Your entire response must be a valid JSON object. Do not include any text outside the JSON structure.
+            }}
+        }}
         """
         return prompt
 
@@ -287,7 +301,7 @@ class ADLClassifier:
         """Get individual frame descriptions from sampled frames."""
 
         frame_descriptions = []
-        for frame in tqdm(sampled_frames, total=len(sampled_frames)):
+        for frame in sampled_frames:
             frame_base64 = self._encode_image(frame)
             frame_number = sampled_indices[sampled_frames.index(frame)]
             frame_prompt = self._create_frame_analysis_prompt(
@@ -297,7 +311,7 @@ class ADLClassifier:
             response = self._get_model_response(frame_prompt, frame_base64)
             frame_descriptions.append(response)
 
-        print("Frame analysis completed.")
+        self.logger.info("Frame analysis completed.")
         return frame_descriptions
 
     def synthesize_context(self, frame_descriptions: list[str]) -> str:
@@ -306,7 +320,7 @@ class ADLClassifier:
         synthesis_prompt = self._create_frame_context_synthesis(frame_descriptions)
         synthesis_response = self._get_model_response(synthesis_prompt)
 
-        print("Frame synthesis completed.")
+        self.logger.info("Context synthesis completed.")
         return synthesis_response
 
     def classify_adl(
@@ -326,7 +340,7 @@ class ADLClassifier:
             classification_prompt, grid_base64
         )
 
-        print("ADL classification completed.")
+        self.logger.info("ADL classification completed.")
         return classification_response
 
     def predict(
@@ -352,11 +366,12 @@ class ADLClassifier:
         # parse response
         try:
             adl_classification = json.loads(adl_classification)
+            adl_classification["Image_Grid"] = image_grid
+            return adl_classification
+
         except json.JSONDecodeError:
-            print("Error parsing JSON response.")
-            return {}
-
-        # add image grid to response
-        adl_classification["Image_Grid"] = image_grid
-
-        return adl_classification
+            self.logger.error("Error parsing JSON response: %s", adl_classification)
+            return {
+                "error": "Error parsing JSON response. Please try again.",
+                "Image_Grid": image_grid,
+            }
