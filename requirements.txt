@@ -4,3 +4,8 @@ matplotlib
 requests
 opencv-python
 tqdm
+polars
+seaborn
+scikit-learn
+numpy
+wordcloud
