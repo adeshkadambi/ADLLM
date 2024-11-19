@@ -1,4 +1,5 @@
 import os
+import json
 from collections import defaultdict
 from textwrap import wrap
 
@@ -37,6 +38,52 @@ def get_true_label(file_path: str) -> str:
         .replace("LEISURE OTHER ACTIVITIES", "LEISURE")
         .replace("SELF FEEDING", "FEEDING")
     )
+
+
+def calculate_alignment_rate(alignment_path: str, threshold=3.5):
+    """
+    Calculate clinical reasoning alignment rate from 5-point scale scores.
+
+    Parameters:
+    alignment_path (str): Path to the alignment scores file
+    threshold (float): Minimum score to be considered "aligned" (default 3.5)
+
+    Returns:
+    dict: Contains alignment rate and detailed statistics
+    """
+
+    with open(alignment_path, encoding="utf-8") as f:
+        alignment_scores = json.load(f)
+
+    ratings = []
+
+    for path, result in alignment_scores.items():
+        ratings.append(result["rating"])
+
+    scores = np.array(ratings)
+
+    # Calculate alignment rate (% of scores >= threshold)
+    aligned = scores >= threshold
+    alignment_rate = (aligned.sum() / len(scores)) * 100
+
+    # Convert scores to polars DataFrame for distribution analysis
+    score_df = pl.DataFrame({"score": scores})
+
+    # Calculate score distribution
+    distribution = score_df.group_by("score").len().sort("score")
+
+    # Calculate statistics
+    stats = {
+        "alignment_rate": alignment_rate,
+        "mean_score": float(scores.mean()),
+        "median_score": float(np.median(scores)),
+        "score_distribution": dict(
+            zip(distribution["score"].to_list(), distribution["len"].to_list())
+        ),
+        "n_samples": len(scores),
+    }
+
+    return stats
 
 
 def plot_confusion_matrices(y_true, y_pred, labels):
@@ -218,7 +265,7 @@ def analyze_tags(results_dict, use_ground_truth=True):
         else:
             label = result["prediction"]
 
-        tags = result["tags"]
+        tags = [tag.lower() for tag in result["tags"]]
         tags_by_label[label].extend(tags)
 
     # Convert to DataFrame for frequency analysis
