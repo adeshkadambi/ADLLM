@@ -118,8 +118,10 @@ class BatchProcessor:
         adl_counts = {}
         error_count = 0
         for result in self.results.values():
-            if "ADL" in result:
-                adl_counts[result["ADL"]] = adl_counts.get(result["ADL"], 0) + 1
+            if "Activity" in result:
+                adl_counts[result["Activity"]] = (
+                    adl_counts.get(result["Activity"], 0) + 1
+                )
             else:
                 error_count += 1
 
@@ -306,15 +308,20 @@ class BatchProcessor:
 
                 # Store results
                 self.results[rel_path] = {
-                    "prediction": response["ADL"],
-                    "tags": response["Tags"],
+                    "prediction": response["Activity"],
+                    "alternate_predictions": response["Alternate Activities"],
+                    "tags": response["Final List of Tags"],
                     "reasoning": response["Reasoning"],
-                    "intermediates": response["Intermediate_Steps"],
                     "grid_path": os.path.join("grids", grid_rel_path),
                 }
 
                 self.processed_videos.add(rel_path)
-                self.logger.info("Processed %s: %s", rel_path, response["ADL"])
+                self.logger.info(
+                    "Processed %s: %s (Tags: %s)",
+                    rel_path,
+                    response["Activity"],
+                    response["Final List of Tags"],
+                )
 
             self.save_results()
             processed_this_session += 1

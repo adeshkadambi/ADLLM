@@ -9,7 +9,7 @@ from io import BytesIO
 import ollama
 from PIL import Image
 
-from classes import ADL_DESCRIPTIONS
+import prompts
 
 
 class ADLClassifier:
@@ -18,11 +18,7 @@ class ADLClassifier:
         self.model = model
         ollama.pull(self.model)
 
-        self.system_prompt = """
-        You are a highly experienced rehabilitation specialist with expertise in ADL classification.
-        You have extensive experience working with stroke and SCI patients and understand how
-        these conditions affect activity performance.
-        """
+        self.system_prompt = prompts.create_system_prompt()
 
         # set default options
         kwargs.setdefault("temperature", 0)
@@ -36,128 +32,6 @@ class ADLClassifier:
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
         self.logger = logging.getLogger(__name__)
-
-    @staticmethod
-    def _create_frame_analysis_prompt(frame_number: int, total_frames: int) -> str:
-        """Create prompt for analyzing individual frames."""
-
-        prompt = f"""
-        You are analyzing frame {frame_number} of {total_frames} from a first-person perspective video captured using a head-mounted GoPro camera.
-        Describe ONLY what you can directly observe in this single frame, without any interpretation:
-
-        1. Static Elements
-        - Room/location visible
-        - Furniture or fixtures present
-        - Objects visible in frame
-
-        2. Person's Position
-        - Hand position
-        - Any object currently in hand
-        - Body position (if visible)
-
-        3. State of Objects
-        - Position of objects relative to person
-        - Whether objects are being actively manipulated
-
-        Important: 
-        - Do not make assumptions about activities
-        - Do not interpret purpose of objects
-        - Do not connect observations between frames
-        - Do not speculate about intent
-
-        Describe only what exists in this exact frame by placing more emphasis on objects manipulated by the person:
-        """
-        return prompt
-
-    @staticmethod
-    def _create_frame_context_synthesis(frame_descriptions: list[str]) -> str:
-        """After getting individual frame descriptions, synthesize key patterns."""
-
-        prompt = f"""
-        **Review these {len(frame_descriptions)} frame descriptions and list:**
-
-        1. Constant Elements
-        - What objects remain in the same position across frames
-        - What environment features are consistent
-
-        2. Changes Between Frames
-        - What objects change position
-        - What hand positions change
-        - What new objects appear or disappear
-
-        Important: Only describe patterns that are explicitly mentioned in multiple frame descriptions.
-        Do not interpret these patterns yet.
-
-        **FRAME DESCRIPTIONS:**
-        {frame_descriptions}
-        """
-        return prompt
-
-    @staticmethod
-    def _create_adl_classification_prompt(
-        frame_descriptions: list[str], context_synthesis: str
-    ) -> str:
-        """Create prompt for classifying ADL based on frame descriptions and context synthesis."""
-        prompt = f"""
-        **Problem Statement**: 
-        You are classifying an activity from the following options based on these observations and image grid. The image grid
-        shows {len(frame_descriptions)} frames that were uniformly sampled from a video and arranged from top left to bottom right.
-
-        **Activity Options**:
-        {ADL_DESCRIPTIONS}
-
-        **Frame Observations**:
-        {frame_descriptions}
-
-        **Temporal Analysis**:
-        {context_synthesis}
-
-        What activity is being performed in this video?
-
-        **Solution Structure**:
-        1. Begin by listing ALL observable evidence across frames:
-        - Sustained actions/positions
-        - Object interactions
-        - Environmental context
-        - Changes or lack of changes between frames
-
-        2. Compare evidence against EACH activity category's required criteria:
-        - Must check against ALL categories
-        - Document which criteria are met AND not met for each category
-        - Cannot skip categories even if one seems obvious
-        - When in doubt, classify based on confirmed actions, not potential actions
-        - Presence of objects alone does not indicate their use
-        - Document why each unselected category does not fit
-
-        Step 3: Confirm with expert opinion:
-        - Consult with 5 occupational therapists and reach a consensus on the ADL classification
-        - Document key points of discussion and reasoning
-
-        Step 4: Evaluate consensus classification:
-        - Have 3 different occupational therapists critically evaluate the classification
-        - Document their findings and any disagreements
-
-        Step 5: Verify final classification:
-        - Confirm the final classification aligns with all evidence
-        - Ensure the chosen category is one of the provided options
-
-        **Required Response Format**:
-        Respond with a valid JSON object using this exact structure:
-        {{
-            "ADL": "one of FEEDING, FUNCTIONAL MOBILITY, GROOMING AND HEALTH MANAGEMENT, COMMUNICATION MANAGEMENT, HOME MANAGEMENT, MEAL PREPARATION AND CLEANUP, or LEISURE",
-            "Reasoning": "string containing detailed reasoning with specific frame references",
-            "Activities": "string containing the sequence of actions observed",
-            "Tags": "list of tags describing key actions and active objects to support classification",
-            "Intermediate_Steps": {{
-                "Environment_Analysis": "string describing step 1 findings",
-                "ADL_Comparison": "string describing step 2 findings",
-                "OT_Discussion": "string describing step 3 findings",
-                "Expert_Evaluation": "string describing step 4 findings",
-                "Final_Verification": "string describing step 5 findings"
-            }}
-        }}
-        """
-        return prompt
 
     def _get_model_response(self, prompt: str, image_base64: str | None = None) -> str:
 
@@ -304,7 +178,7 @@ class ADLClassifier:
         for frame in sampled_frames:
             frame_base64 = self._encode_image(frame)
             frame_number = sampled_indices[sampled_frames.index(frame)]
-            frame_prompt = self._create_frame_analysis_prompt(
+            frame_prompt = prompts.create_frame_analysis_prompt(
                 frame_number, total_frames
             )
 
@@ -317,7 +191,7 @@ class ADLClassifier:
     def synthesize_context(self, frame_descriptions: list[str]) -> str:
         """Synthesize context from list of individual frame descriptions."""
 
-        synthesis_prompt = self._create_frame_context_synthesis(frame_descriptions)
+        synthesis_prompt = prompts.create_frame_context_synthesis(frame_descriptions)
         synthesis_response = self._get_model_response(synthesis_prompt)
 
         self.logger.info("Context synthesis completed.")
@@ -326,15 +200,14 @@ class ADLClassifier:
     def classify_adl(
         self,
         frame_descriptions: list[str],
-        context_synthesis: str,
         image_grid: Image.Image,
     ) -> str:
         """Classify ADL based on frame descriptions and context synthesis."""
 
         grid_base64 = self._encode_image(image_grid)
 
-        classification_prompt = self._create_adl_classification_prompt(
-            frame_descriptions, context_synthesis
+        classification_prompt = prompts.adl_classification_2024_11_19(
+            frame_descriptions
         )
         classification_response = self._json_model_response(
             classification_prompt, grid_base64
@@ -358,10 +231,7 @@ class ADLClassifier:
         frame_descriptions = self.analyse_frames(
             sampled_frames, sampled_indices, total_frames
         )
-        context_synthesis = self.synthesize_context(frame_descriptions)
-        adl_classification = self.classify_adl(
-            frame_descriptions, context_synthesis, image_grid
-        )
+        adl_classification = self.classify_adl(frame_descriptions, image_grid)
 
         # parse response
         try:
