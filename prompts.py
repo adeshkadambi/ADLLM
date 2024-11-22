@@ -27,8 +27,9 @@ def create_frame_analysis_prompt(frame_number: int, total_frames: int) -> str:
     """Create prompt for analyzing individual frames."""
 
     prompt_2024_11_11 = f"""
-    You are analyzing frame {frame_number} of {total_frames} from a first-person perspective video captured using a head-mounted GoPro camera.
-    Describe ONLY what you can directly observe in this single frame, without any interpretation:
+    You are analyzing frame {frame_number} of {total_frames} from a first-person
+    perspective video captured using a head-mounted GoPro camera. Describe ONLY what you
+    can directly observe in this single frame, without any interpretation:
 
     1. Static Elements
     - Room/location visible
@@ -44,20 +45,22 @@ def create_frame_analysis_prompt(frame_number: int, total_frames: int) -> str:
     - Position of objects relative to person
     - Whether objects are being actively manipulated
 
-    Important: 
+    Important:
     - Do not make assumptions about activities
     - Do not interpret purpose of objects
     - Do not connect observations between frames
     - Do not speculate about intent
 
-    Describe only what exists in this exact frame by placing more emphasis on objects manipulated by the person:
+    Describe only what exists in this exact frame by placing more emphasis on objects
+    manipulated by the person:
     """
 
     prompt = f"""
-    This is frame {frame_number} of {total_frames} from a 1-minute video captured using a head-mounted GoPro camera
-    of a person performing an activity at home. Describe what you see in this frame, focusing on: the room or location,
-    objects present, objects being actively interacted with, and the person's actions. 
-    
+    This is frame {frame_number} of {total_frames} from a 1-minute video captured using
+    a head-mounted GoPro camera of a person performing an activity at home. Describe
+    what you see in this frame, focusing on: the room or location, objects present,
+    objects being actively interacted with, and the person's actions.
+
     Remember to be objective and avoid making assumptions.
     """
 

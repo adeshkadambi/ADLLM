@@ -1,19 +1,18 @@
-import os
 import json
+import os
 from collections import defaultdict
 from textwrap import wrap
 
+import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
 import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-
 from matplotlib.gridspec import GridSpec
 from sklearn.metrics import (
+    balanced_accuracy_score,
     classification_report,
     confusion_matrix,
-    balanced_accuracy_score,
 )
 from sklearn.utils import compute_class_weight
 from wordcloud import WordCloud

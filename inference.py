@@ -1,9 +1,9 @@
 # mypy: ignore-errors
 
-import math
-import json
 import base64
+import json
 import logging
+import math
 from io import BytesIO
 
 import ollama

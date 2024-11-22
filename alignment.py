@@ -5,12 +5,12 @@ For each video, show the grid and the reasoning side by side.
 Assign a rating and any notes. Save the results.
 """
 
-import os
 import json
+import os
 from typing import Any
 
-import streamlit as st
 import polars as pl
+import streamlit as st
 
 from evaluation import get_true_label
 
