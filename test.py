@@ -8,8 +8,7 @@ import sys
 import torch
 from accelerate import Accelerator
 from huggingface_hub import HfFolder
-from peft import PeftModel
-from PIL import Image as PIL_Image
+from PIL import Image
 from transformers import (
     BitsAndBytesConfig,
     MllamaForConditionalGeneration,
@@ -25,14 +24,14 @@ os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
 
 # Initialize accelerator
 accelerator = Accelerator(
-    mixed_precision="bf16",  # RTX 4080 has good bfloat16 support
+    mixed_precision="bf16",
 )
 device = accelerator.device
 
 # Constants
 DEFAULT_MODEL = "meta-llama/Llama-3.2-11B-Vision-Instruct"
 MAX_OUTPUT_TOKENS = 2048
-MAX_IMAGE_SIZE = (1120, 1120)
+MAX_IMAGE_SIZE = 1120
 
 
 def get_hf_token():
@@ -47,7 +46,7 @@ def get_hf_token():
     sys.exit(1)
 
 
-def load_model_and_processor(model_name: str, finetuning_path: str = None):
+def load_model_and_processor(model_name: str):
     """Load model and processor with RTX 4080 specific optimizations"""
     print(f"Loading model: {model_name}")
     hf_token = get_hf_token()
@@ -83,15 +82,6 @@ def load_model_and_processor(model_name: str, finetuning_path: str = None):
             use_safetensors=True,
         )
 
-        if finetuning_path and os.path.exists(finetuning_path):
-            print(f"Loading LoRA adapter from '{finetuning_path}'...")
-            model = PeftModel.from_pretrained(
-                model,
-                finetuning_path,
-                is_adapter=True,
-                torch_dtype=torch.bfloat16,
-            )
-
         # Ensure model is properly initialized
         model = model.eval()  # Set to evaluation mode
 
@@ -112,12 +102,30 @@ def load_model_and_processor(model_name: str, finetuning_path: str = None):
         raise
 
 
-def process_image(image_path: str | None = None, image=None) -> PIL_Image.Image:
+def resize_image(img: Image.Image, max_dim: int = MAX_IMAGE_SIZE) -> Image.Image:
+    """
+    Resize image to have a maximum dimension of max_dim.
+    Default max_dim for the Llama3.2 is 1120.
+    """
+    original_width, original_height = img.size
+
+    if original_width > original_height:
+        scale_factor = max_dim / original_width
+    else:
+        scale_factor = max_dim / original_height
+
+    new_width = int(original_width * scale_factor)
+    new_height = int(original_height * scale_factor)
+
+    return img.resize((new_width, new_height))
+
+
+def process_image(image_path: str | None = None, image=None) -> Image.Image:
     """Process and validate image input"""
     if image is not None:
-        return image.convert("RGB")
+        return resize_image(image.convert("RGB"))
     if image_path and os.path.exists(image_path):
-        return PIL_Image.open(image_path).convert("RGB")
+        return resize_image(Image.open(image_path).convert("RGB"))
     raise ValueError("No valid image provided")
 
 
@@ -176,9 +184,7 @@ def main(args):
         torch.cuda.empty_cache()
         gc.collect()
 
-        model, processor = load_model_and_processor(
-            args.model_name, args.finetuning_path
-        )
+        model, processor = load_model_and_processor(args.model_name)
 
         image = None
         if args.image_path:
@@ -206,13 +212,12 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", type=str, help="Path to the input image")
     parser.add_argument("--prompt_text", type=str, help="Prompt text for the image")
     parser.add_argument(
-        "--temperature", type=float, default=0.0, help="Sampling temperature"
+        "--temperature", type=float, default=0.1, help="Sampling temperature"
     )
     parser.add_argument("--top_p", type=float, default=0.5, help="Top-p sampling")
     parser.add_argument(
         "--model_name", type=str, default=DEFAULT_MODEL, help="Model name"
     )
-    parser.add_argument("--finetuning_path", type=str, help="Path to LoRA weights")
 
     args = parser.parse_args()
     main(args)
