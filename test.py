@@ -19,7 +19,7 @@ from transformers import (
 torch.cuda.empty_cache()
 gc.collect()
 
-# Set environment variables for RTX 4080 optimization
+# Set environment variables for CUDA memory allocation
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
 
 # Initialize accelerator
@@ -47,7 +47,7 @@ def get_hf_token():
 
 
 def load_model_and_processor(model_name: str):
-    """Load model and processor with RTX 4080 specific optimizations"""
+    """Load model and processor from Huggingface Hub"""
     print(f"Loading model: {model_name}")
     hf_token = get_hf_token()
 
@@ -68,7 +68,7 @@ def load_model_and_processor(model_name: str):
         model = MllamaForConditionalGeneration.from_pretrained(
             model_name,
             quantization_config=quantization_config,
-            device_map="auto",  # Let HF handle device mapping
+            device_map="auto",
             torch_dtype=torch.bfloat16,
             use_safetensors=True,
             token=hf_token,
@@ -82,7 +82,6 @@ def load_model_and_processor(model_name: str):
             use_safetensors=True,
         )
 
-        # Ensure model is properly initialized
         model = model.eval()  # Set to evaluation mode
 
         # Move model to device if not already there
@@ -180,7 +179,6 @@ def generate_text_from_image(
 def main(args):
     """Main execution flow"""
     try:
-        # Initial memory cleanup
         torch.cuda.empty_cache()
         gc.collect()
 
@@ -202,7 +200,6 @@ def main(args):
         raise
 
     finally:
-        # Final memory cleanup
         torch.cuda.empty_cache()
         gc.collect()
 

@@ -1,25 +1,41 @@
-# Setup Instructions
+# Project Setup
 
-Assuming you installed ollmama version 0.4.0 or later, 
-follow the instructions below to setup the environment.
+**Prerequisites**: Make sure `uv` and `ollama` are installed on your system.
 
-1. Create virtual environment (python version 3.12.7):
 ```bash
-python3 -m venv adl_venv
+# create virtual environment
+uv venv --python 3.12
+
+# activate and install dependencies
+source .venv/bin/activate
+uv pip install -r requirements.txt
 ```
 
-2. Activate virtual environment:
+Congratulations, you are ready to go! 🎉
+
+# Managing Dependencies
+
+### Adding a Dependency
+
 ```bash
-source adl_venv/bin/activate
+# add the dependency to pyproject.toml
+uv add <package-name>
+
+# auto-generate a new requirements.txt file
+uv pip compile pyproject.toml -o requirements.txt
 ```
 
-3. Install dependencies:
+### Removing a Dependency
+
 ```bash
-pip install -r requirements.txt
+# add the dependency to pyproject.toml
+uv remove <package-name>
+
+# auto-generate a new requirements.txt file
+uv pip compile pyproject.toml -o requirements.txt
 ```
 
-### Common Issues
-
+# Common Issues
 
 > ResponseError: llama runner process has terminated: exit status 127
 
