@@ -91,9 +91,7 @@ def create_frame_context_synthesis(frame_descriptions: list[str]) -> str:
     return prompt
 
 
-def create_adl_classification_prompt(
-    frame_descriptions: list[str], context_synthesis: str
-) -> str:
+def create_adl_classification_prompt(frame_descriptions: list[str], context_synthesis: str) -> str:
     """Create prompt for classifying ADL based on frame descriptions and context synthesis."""
     prompt = f"""
         **Problem Statement**: 

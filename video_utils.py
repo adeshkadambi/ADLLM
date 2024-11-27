@@ -17,9 +17,7 @@ class SamplingStrategy(enum.StrEnum):
     def get_frame_indices(self, total_frames: int, num_frames: int) -> list[int]:
         """Get frame indices based on the sampling strategy."""
         if num_frames > total_frames:
-            raise ValueError(
-                f"Cannot sample {num_frames} frames from {total_frames} total frames"
-            )
+            raise ValueError(f"Cannot sample {num_frames} frames from {total_frames} total frames")
 
         strategies: dict[SamplingStrategy, Callable] = {
             SamplingStrategy.UNIFORM: self._uniform_sampling,
@@ -32,9 +30,7 @@ class SamplingStrategy(enum.StrEnum):
     def _uniform_sampling(total_frames: int, num_frames: int) -> list[int]:
         if num_frames == 1:
             return [total_frames // 2]
-        return [
-            int(i * (total_frames - 1) / (num_frames - 1)) for i in range(num_frames)
-        ]
+        return [int(i * (total_frames - 1) / (num_frames - 1)) for i in range(num_frames)]
 
     @staticmethod
     def _random_sampling(total_frames: int, num_frames: int) -> list[int]:
@@ -51,9 +47,7 @@ def _save_frame(frame: Image.Image, output_dir: Path, frame_number: int) -> None
     frame.save(output_dir / f"frame_{frame_number:05d}.jpg", "JPEG")
 
 
-def _process_frame_batch(
-    args: tuple[cv2.VideoCapture, list[int], bool, Path]
-) -> list[Image.Image]:
+def _process_frame_batch(args: tuple[cv2.VideoCapture, list[int], bool, Path]) -> list[Image.Image]:
     """Process a batch of frames from the video."""
     cap, frame_indices, save_frames, output_dir = args
     frames = []
@@ -102,9 +96,7 @@ def extract_frames(
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
     if num_frames > total_frames:
-        raise ValueError(
-            f"Requested frames ({num_frames}) exceeds video length ({total_frames})"
-        )
+        raise ValueError(f"Requested frames ({num_frames}) exceeds video length ({total_frames})")
 
     # Get frame indices based on sampling method
     frame_indices = sampling_method.get_frame_indices(total_frames, num_frames)
@@ -118,10 +110,7 @@ def extract_frames(
     # Split frame indices into batches for parallel processing
     num_workers = min(os.cpu_count() or 1, len(frame_indices))
     batch_size = max(1, len(frame_indices) // num_workers)
-    batches = [
-        frame_indices[i : i + batch_size]
-        for i in range(0, len(frame_indices), batch_size)
-    ]
+    batches = [frame_indices[i : i + batch_size] for i in range(0, len(frame_indices), batch_size)]
 
     frames = []
     # Process batches in parallel

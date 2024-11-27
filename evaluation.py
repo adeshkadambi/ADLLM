@@ -80,9 +80,7 @@ def evaluate_adl_classifications(results_dict: dict) -> dict:
 
     # Calculate class distribution
     class_dist = (
-        df.group_by("true_label")
-        .agg(pl.count().alias("Count"))
-        .sort("Count", descending=True)
+        df.group_by("true_label").agg(pl.count().alias("Count")).sort("Count", descending=True)
     )
 
     # Generate classification report with sample weights
@@ -103,9 +101,7 @@ def evaluate_adl_classifications(results_dict: dict) -> dict:
     ).transpose()
 
     # Calculate balanced accuracy with sample weights
-    bal_acc = metrics.balanced_accuracy_score(
-        y_true, y_pred, sample_weight=sample_weights
-    )
+    bal_acc = metrics.balanced_accuracy_score(y_true, y_pred, sample_weight=sample_weights)
 
     # Create confusion matrix visualizations
     confusion_matrices = metrics.ConfusionMatrixDisplay.from_predictions(
@@ -128,9 +124,7 @@ def evaluate_adl_classifications(results_dict: dict) -> dict:
     class_weights = dict(
         zip(
             labels,
-            compute_class_weight(
-                class_weight="balanced", classes=np.array(labels), y=y_true
-            ),
+            compute_class_weight(class_weight="balanced", classes=np.array(labels), y=y_true),
         )
     )
 
@@ -148,9 +142,7 @@ def calculate_sample_weights(y_true: np.ndarray) -> np.ndarray:
     """Calculate sample weights based on class distribution."""
 
     classes = np.unique(y_true)
-    class_weights = compute_class_weight(
-        class_weight="balanced", classes=classes, y=y_true
-    )
+    class_weights = compute_class_weight(class_weight="balanced", classes=classes, y=y_true)
 
     # Create a dictionary mapping classes to weights
     weight_dict = dict(zip(classes, class_weights))
@@ -200,9 +192,7 @@ def analyze_tags(
         label_tags = tag_frequencies.filter(pl.col("label") == label)
 
         # Create frequency dictionary
-        freq_dict = dict(
-            zip(label_tags["tag"].to_list(), label_tags["frequency"].to_list())
-        )
+        freq_dict = dict(zip(label_tags["tag"].to_list(), label_tags["frequency"].to_list()))
 
         # Generate word cloud
         wordcloud = WordCloud(
@@ -259,7 +249,7 @@ def get_top_tags_by_prediction(
 
 
 def analyze_predictions(
-    results_dict: dict[str, dict[str, str | list[str] | list[dict[str, str]]]]
+    results_dict: dict[str, dict[str, str | list[str] | list[dict[str, str]]]],
 ) -> dict[str, dict[str, int | float | dict[str, int]]]:
     """Generates summary statistics and error patterns for predictions."""
 
@@ -292,9 +282,7 @@ def analyze_predictions(
             "correct": stats["correct"],
             "accuracy": round(stats["correct"] / stats["total"] * 100, 2),
             "misclassifications": dict(
-                sorted(
-                    stats["misclassified_as"].items(), key=lambda x: x[1], reverse=True
-                )
+                sorted(stats["misclassified_as"].items(), key=lambda x: x[1], reverse=True)
             ),
         }
 

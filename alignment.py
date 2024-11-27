@@ -145,14 +145,10 @@ def run():
 
         with col1:
             st.image(current_sample["grid_path"].item())
-            feedback = st.feedback(
-                "stars", key=f"feedback_{st.session_state.current_index}"
-            )
+            feedback = st.feedback("stars", key=f"feedback_{st.session_state.current_index}")
 
             if feedback is not None:
-                save_rating(
-                    current_sample["file_path"].item(), current_sample, feedback
-                )
+                save_rating(current_sample["file_path"].item(), current_sample, feedback)
 
             with st.expander("Feedback Guidelines", expanded=True):
                 st.markdown(

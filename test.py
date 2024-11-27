@@ -208,13 +208,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="RTX 4080 optimized Llama inference")
     parser.add_argument("--image_path", type=str, help="Path to the input image")
     parser.add_argument("--prompt_text", type=str, help="Prompt text for the image")
-    parser.add_argument(
-        "--temperature", type=float, default=0.1, help="Sampling temperature"
-    )
+    parser.add_argument("--temperature", type=float, default=0.1, help="Sampling temperature")
     parser.add_argument("--top_p", type=float, default=0.5, help="Top-p sampling")
-    parser.add_argument(
-        "--model_name", type=str, default=DEFAULT_MODEL, help="Model name"
-    )
+    parser.add_argument("--model_name", type=str, default=DEFAULT_MODEL, help="Model name")
 
     args = parser.parse_args()
     main(args)

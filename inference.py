@@ -13,7 +13,6 @@ import prompts
 
 
 class ADLClassifier:
-
     def __init__(self, model: str = "llama3.2-vision:latest", **kwargs) -> None:
         self.model = model
         ollama.pull(self.model)
@@ -34,7 +33,6 @@ class ADLClassifier:
         self.logger = logging.getLogger(__name__)
 
     def _get_model_response(self, prompt: str, image_base64: str | None = None) -> str:
-
         if image_base64 is None:
             message = {"role": "user", "content": prompt}
         else:
@@ -50,9 +48,7 @@ class ADLClassifier:
         )
         return response["message"]["content"]
 
-    def _json_model_response(
-        self, prompt: str, image_base64: str | None = None
-    ) -> dict:
+    def _json_model_response(self, prompt: str, image_base64: str | None = None) -> dict:
         if image_base64 is None:
             message = {"role": "user", "content": prompt}
         else:
@@ -158,9 +154,7 @@ class ADLClassifier:
             else:
                 new_height = max_dim
                 new_width = int(max_dim * aspect_ratio)
-            grid_image = grid_image.resize(
-                (new_width, new_height), Image.Resampling.LANCZOS
-            )
+            grid_image = grid_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
         return grid_image
 
@@ -176,9 +170,7 @@ class ADLClassifier:
         for frame in sampled_frames:
             frame_base64 = self._encode_image(frame)
             frame_number = sampled_indices[sampled_frames.index(frame)]
-            frame_prompt = prompts.create_frame_analysis_prompt(
-                frame_number, total_frames
-            )
+            frame_prompt = prompts.create_frame_analysis_prompt(frame_number, total_frames)
 
             response = self._get_model_response(frame_prompt, frame_base64)
             frame_descriptions.append(response)
@@ -204,12 +196,8 @@ class ADLClassifier:
 
         grid_base64 = self._encode_image(image_grid)
 
-        classification_prompt = prompts.adl_classification_2024_11_19(
-            frame_descriptions
-        )
-        classification_response = self._json_model_response(
-            classification_prompt, grid_base64
-        )
+        classification_prompt = prompts.adl_classification_2024_11_19(frame_descriptions)
+        classification_response = self._json_model_response(classification_prompt, grid_base64)
 
         self.logger.info("ADL classification completed.")
         return classification_response
@@ -224,9 +212,7 @@ class ADLClassifier:
         Predict ADL based on sampled frames.
         """
         image_grid = self._create_image_grid(sampled_frames)
-        frame_descriptions = self.analyse_frames(
-            sampled_frames, sampled_indices, total_frames
-        )
+        frame_descriptions = self.analyse_frames(sampled_frames, sampled_indices, total_frames)
         adl_classification = self.classify_adl(frame_descriptions, image_grid)
 
         try:

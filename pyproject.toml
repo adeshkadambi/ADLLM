@@ -24,3 +24,31 @@ dependencies = [
     "transformers",
     "wordcloud>=1.9.4",
 ]
+
+[tool.ruff]
+exclude = [
+    ".git",
+    ".git-rewrite",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "venv",
+]
+line-length = 100
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I001"]
+extend-select = ["E501"]
+ignore = []
+fixable = ["ALL"]
+unfixable = []

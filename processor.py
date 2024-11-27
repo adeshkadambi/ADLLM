@@ -119,9 +119,7 @@ class BatchProcessor:
         error_count = 0
         for result in self.results.values():
             if "Activity" in result:
-                adl_counts[result["Activity"]] = (
-                    adl_counts.get(result["Activity"], 0) + 1
-                )
+                adl_counts[result["Activity"]] = adl_counts.get(result["Activity"], 0) + 1
             else:
                 error_count += 1
 
@@ -156,8 +154,7 @@ class BatchProcessor:
         batch_dirs = [
             d
             for d in os.listdir(self.output_dir)
-            if d.startswith("batch_")
-            and os.path.isdir(os.path.join(self.output_dir, d))
+            if d.startswith("batch_") and os.path.isdir(os.path.join(self.output_dir, d))
         ]
 
         if not batch_dirs:
@@ -198,12 +195,8 @@ class BatchProcessor:
                 self.results_path = results_path
                 self.progress_path = progress_path
 
-                self.logger.info(
-                    "Resuming from batch: %s", os.path.basename(self.batch_dir)
-                )
-                self.logger.info(
-                    "Already processed: %d videos", len(self.processed_videos)
-                )
+                self.logger.info("Resuming from batch: %s", os.path.basename(self.batch_dir))
+                self.logger.info("Already processed: %d videos", len(self.processed_videos))
 
     def process_single_video(
         self, video_path, sampled_frames, sampled_indices, total_frames, retry_counter=0
@@ -258,7 +251,6 @@ class BatchProcessor:
         processed_this_session = 0
 
         for video_path, rel_path in video_files:
-
             # Track progress as a fraction and percentage using logging
             progress_fraction = processed_this_session / len(video_files)
             progress_percent = progress_fraction * 100
@@ -291,12 +283,8 @@ class BatchProcessor:
             else:
                 # Create grid image path preserving directory structure
                 rel_dir = os.path.dirname(rel_path)
-                grid_filename = (
-                    f"{os.path.splitext(os.path.basename(video_path))[0]}_grid.png"
-                )
-                grid_rel_path = (
-                    os.path.join(rel_dir, grid_filename) if rel_dir else grid_filename
-                )
+                grid_filename = f"{os.path.splitext(os.path.basename(video_path))[0]}_grid.png"
+                grid_rel_path = os.path.join(rel_dir, grid_filename) if rel_dir else grid_filename
                 grid_full_path = os.path.join(self.images_dir, grid_rel_path)
 
                 # Ensure the directory for the grid image exists
@@ -329,9 +317,7 @@ class BatchProcessor:
         # Final save and summary
         self.save_final_summary()
 
-        self.logger.info(
-            "Successfully processed: %d videos", len(self.processed_videos)
-        )
+        self.logger.info("Successfully processed: %d videos", len(self.processed_videos))
         self.logger.info("Results saved to: %s", self.batch_dir)
 
 
@@ -343,10 +329,10 @@ def main():
         Examples:
         # Process videos with default settings
         python script.py /path/to/videos
-        
+
         # Start fresh without resuming from previous batch
         python script.py /path/to/videos --no-resume
-        
+
         # Custom frames and output directory
         python script.py /path/to/videos -n 6 -o /path/to/output
         """,
