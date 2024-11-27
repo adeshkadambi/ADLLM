@@ -390,6 +390,12 @@ def main():
     if not os.path.isdir(args.video_dir):
         parser.error(f"Video directory does not exist: {args.video_dir}")
 
+    print("Processing videos with the following settings:")
+    print(f"Video directory: {args.video_dir}")
+    print(f"Model: {args.model}")
+    print(f"Number of frames: {args.num_frames}")
+    print(f"Output directory: {args.output_dir}")
+
     # Create processor and run
     processor = BatchProcessor(
         args.video_dir,
