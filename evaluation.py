@@ -1,33 +1,16 @@
 import json
-import os
 from collections import defaultdict
-from textwrap import wrap
 
-import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
 import numpy as np
 import polars as pl
-import seaborn as sns
-from matplotlib.gridspec import GridSpec
-from sklearn.metrics import (
-    balanced_accuracy_score,
-    classification_report,
-    confusion_matrix,
-)
+from sklearn import metrics
 from sklearn.utils import compute_class_weight
 from wordcloud import WordCloud
 
 
 def get_true_label(file_path: str) -> str:
-    """
-    Extract the true label from a file path.
-
-    Parameters:
-    file_path (str): Path to a file containing the label
-
-    Returns:
-    str: The true label extracted from the file path
-    """
+    """Extract the true label from a file path."""
     return (
         file_path.split("/")[0]
         .upper()
@@ -39,17 +22,8 @@ def get_true_label(file_path: str) -> str:
     )
 
 
-def calculate_alignment_rate(alignment_path: str, threshold=3.5):
-    """
-    Calculate clinical reasoning alignment rate from 5-point scale scores.
-
-    Parameters:
-    alignment_path (str): Path to the alignment scores file
-    threshold (float): Minimum score to be considered "aligned" (default 3.5)
-
-    Returns:
-    dict: Contains alignment rate and detailed statistics
-    """
+def calculate_alignment_rate(alignment_path: str, threshold: int = 4) -> dict:
+    """Calculate clinical reasoning alignment rate from 5-point scale scores."""
 
     with open(alignment_path, encoding="utf-8") as f:
         alignment_scores = json.load(f)
@@ -57,6 +31,7 @@ def calculate_alignment_rate(alignment_path: str, threshold=3.5):
     ratings = []
 
     for path, result in alignment_scores.items():
+        assert "rating" in result, f"Rating field not found in alignment for {path}"
         ratings.append(result["rating"])
 
     scores = np.array(ratings)
@@ -85,60 +60,7 @@ def calculate_alignment_rate(alignment_path: str, threshold=3.5):
     return stats
 
 
-def plot_confusion_matrices(y_true, y_pred, labels):
-    """
-    Plot three types of confusion matrices:
-    1. Raw counts
-    2. Normalized by row (recall per class)
-    3. Normalized by column (precision per class)
-
-    Parameters:
-    y_true (array-like): Ground truth labels
-    y_pred (array-like): Predicted labels
-    labels (list): List of class labels
-
-    Returns:
-    Figure: Matplotlib figure containing the plots
-    """
-    # Calculate confusion matrix (raw counts)
-    cm_raw = confusion_matrix(y_true, y_pred, labels=labels)
-
-    # Normalize by row (true labels) - shows recall
-    cm_norm_recall = (cm_raw / cm_raw.sum(axis=1)[:, np.newaxis]).round(3)
-
-    # Create figure with three subplots
-    fig, ax1 = plt.subplots(1, 1, figsize=(8, 8))
-
-    # Plot normalized by row (recall)
-    sns.heatmap(
-        cm_norm_recall,
-        annot=True,
-        fmt=".1%",
-        xticklabels=labels,
-        yticklabels=labels,
-        cmap="Blues",
-        ax=ax1,
-    )
-    # ax1.set_title("Confusion Matrix\n(Normalized by Row - Recall)")
-    ax1.set_xlabel("Predicted")
-    ax1.set_ylabel("True")
-    ax1.set_xticklabels(labels, rotation=45, ha="right")
-
-    plt.tight_layout()
-    return fig
-
-
-def evaluate_adl_classifications(results_dict, adjusted=False):
-    """
-    Evaluate ADL classification results with proper sample weighting for balanced metrics.
-
-    Parameters:
-    results_dict (dict): Dictionary containing classification results
-    adjusted (bool): Whether to adjust balanced accuracy for chance
-
-    Returns:
-    dict: Evaluation results including metrics and visualizations
-    """
+def evaluate_adl_classifications(results_dict: dict) -> dict:
     # Extract true and predicted labels
     data = []
     for file_path, result in results_dict.items():
@@ -146,12 +68,9 @@ def evaluate_adl_classifications(results_dict, adjusted=False):
         pred_label = result["prediction"]
         data.append({"true_label": true_label, "pred_label": pred_label})
 
-    # Create Polars DataFrame
     df = pl.DataFrame(data)
-
-    # Convert to numpy arrays for sklearn metrics
-    y_true = np.array(df["true_label"].to_list())
-    y_pred = np.array(df["pred_label"].to_list())
+    y_true = df["true_label"].to_numpy()
+    y_pred = df["pred_label"].to_numpy()
 
     # Calculate sample weights
     sample_weights = calculate_sample_weights(y_true)
@@ -167,7 +86,7 @@ def evaluate_adl_classifications(results_dict, adjusted=False):
     )
 
     # Generate classification report with sample weights
-    report = classification_report(
+    report = metrics.classification_report(
         y_true, y_pred, sample_weight=sample_weights, output_dict=True, zero_division=0
     )
 
@@ -184,12 +103,19 @@ def evaluate_adl_classifications(results_dict, adjusted=False):
     ).transpose()
 
     # Calculate balanced accuracy with sample weights
-    bal_acc = balanced_accuracy_score(
-        y_true, y_pred, sample_weight=sample_weights, adjusted=adjusted
+    bal_acc = metrics.balanced_accuracy_score(
+        y_true, y_pred, sample_weight=sample_weights
     )
 
     # Create confusion matrix visualizations
-    confusion_matrices = plot_confusion_matrices(y_true, y_pred, labels)
+    confusion_matrices = metrics.ConfusionMatrixDisplay.from_predictions(
+        y_true,
+        y_pred,
+        labels=labels,
+        normalize="true",
+        xticks_rotation=90,
+        cmap=plt.cm.Blues,
+    )
 
     # Calculate additional weighted metrics
     additional_metrics = {
@@ -218,17 +144,9 @@ def evaluate_adl_classifications(results_dict, adjusted=False):
     }
 
 
-def calculate_sample_weights(y_true):
-    """
-    Calculate sample weights based on class distribution.
+def calculate_sample_weights(y_true: np.ndarray) -> np.ndarray:
+    """Calculate sample weights based on class distribution."""
 
-    Parameters:
-    y_true (array-like): Ground truth labels
-
-    Returns:
-    array: Sample weights for each instance
-    """
-    # Get unique classes and compute class weights
     classes = np.unique(y_true)
     class_weights = compute_class_weight(
         class_weight="balanced", classes=classes, y=y_true
@@ -238,22 +156,15 @@ def calculate_sample_weights(y_true):
     weight_dict = dict(zip(classes, class_weights))
 
     # Map weights to samples
-    sample_weights = np.array([weight_dict[y] for y in y_true])
-
-    return sample_weights
+    return np.array([weight_dict[y] for y in y_true])
 
 
-def analyze_tags(results_dict, use_ground_truth=True):
-    """
-    Analyze tags associated with either ground truth or predicted labels.
+def analyze_tags(
+    results_dict: dict[str, dict[str, str | list[str] | list[dict[str, str]]]],
+    use_ground_truth: bool = True,
+) -> dict[str, pl.DataFrame | dict[str, plt.Figure]]:
+    """Analyzes tag frequencies and generates word clouds for each label."""
 
-    Parameters:
-    results_dict (dict): Dictionary containing classification results
-    use_ground_truth (bool): If True, use ground truth labels; if False, use predictions
-
-    Returns:
-    dict: Contains tag frequencies DataFrame and dictionary of word cloud figures
-    """
     # Create a dictionary to store tags for each label
     tags_by_label = defaultdict(list)
 
@@ -316,21 +227,14 @@ def analyze_tags(results_dict, use_ground_truth=True):
     return {"tag_frequencies": tag_frequencies, "wordcloud_plots": wordcloud_figures}
 
 
-def get_top_tags_by_prediction(results_dict, top_n=10):
-    """
-    Get the top N most frequent tags for each prediction.
+def get_top_tags_by_prediction(
+    results_dict: dict[str, dict[str, str | list[str] | list[dict[str, str]]]],
+    top_n: int = 10,
+) -> pl.DataFrame:
+    """Returns the most frequent tags for each prediction category."""
 
-    Parameters:
-    results_dict (dict): Dictionary containing classification results
-    top_n (int): Number of top tags to return for each prediction
-
-    Returns:
-    pl.DataFrame: DataFrame with top tags and their frequencies by prediction
-    """
     # Create a dictionary to store tags for each prediction
     tags_by_prediction = defaultdict(list)
-
-    # Collect tags for each prediction
     for result in results_dict.values():
         prediction = result["prediction"]
         tags = result["tags"]
@@ -342,7 +246,6 @@ def get_top_tags_by_prediction(results_dict, top_n=10):
         for tag in tags:
             tag_data.append({"prediction": prediction, "tag": tag})
 
-    # Create Polars DataFrame and calculate top tags
     df = pl.DataFrame(tag_data)
     top_tags = (
         df.group_by(["prediction", "tag"])
@@ -355,165 +258,11 @@ def get_top_tags_by_prediction(results_dict, top_n=10):
     return top_tags
 
 
-def display_prediction_analysis(
-    batch_path,
-    results_dict,
-    key=None,
-    correct_only=False,
-    incorrect_only=False,
-    max_display=None,
-):
-    """
-    Display prediction analysis including grid images, labels, tags, and reasoning.
-    Can display either a single prediction or multiple predictions.
+def analyze_predictions(
+    results_dict: dict[str, dict[str, str | list[str] | list[dict[str, str]]]]
+) -> dict[str, dict[str, int | float | dict[str, int]]]:
+    """Generates summary statistics and error patterns for predictions."""
 
-    Parameters:
-    results_dict (dict): Dictionary containing classification results
-    key (str): Specific key to display. If None, displays multiple predictions
-    correct_only (bool): If True, show only correct predictions
-    incorrect_only (bool): If True, show only incorrect predictions
-    max_display (int): Maximum number of predictions to display, None for all
-
-    Returns:
-    None (displays figures)
-    """
-
-    # Handle single key display
-    if key is not None:
-        if key not in results_dict:
-            print(f"Key '{key}' not found in results dictionary.")
-            return
-
-        # Create single-item list with the specified key
-        display_items = [
-            {
-                "file_path": key,
-                "grid_path": os.path.join(
-                    batch_path,
-                    results_dict[key]["grid_path"],
-                ),
-                "true_label": get_true_label(key),
-                "pred_label": results_dict[key]["prediction"],
-                "tags": results_dict[key]["tags"],
-                "reasoning": results_dict[key]["reasoning"],
-                "intermediates": results_dict[key].get("intermediates", {}),
-            }
-        ]
-    else:
-        # Process all results and filter based on correctness if requested
-        display_items = []
-        for file_path, result in results_dict.items():
-            true_label = get_true_label(file_path)
-            pred_label = result["prediction"]
-            is_correct = true_label == pred_label
-
-            if correct_only and not is_correct:
-                continue
-            if incorrect_only and is_correct:
-                continue
-
-            display_items.append(
-                {
-                    "file_path": file_path,
-                    "grid_path": os.path.join(batch_path, result["grid_path"]),
-                    "true_label": true_label,
-                    "pred_label": pred_label,
-                    "is_correct": is_correct,
-                    "tags": result["tags"],
-                    "reasoning": result["reasoning"],
-                    "intermediates": result.get("intermediates", {}),
-                }
-            )
-
-        # Sort by correctness (incorrect first if showing both)
-        display_items.sort(key=lambda x: x["is_correct"])
-
-        # Apply max_display limit if specified
-        if max_display is not None:
-            display_items = display_items[:max_display]
-
-    # Display each prediction
-    for idx, item in enumerate(display_items, 1):
-        # Create figure with custom layout
-        fig = plt.figure(figsize=(20, 10))
-        gs = GridSpec(1, 2, figure=fig, width_ratios=[1, 1])
-
-        # Left side: Image
-        ax_img = fig.add_subplot(gs[0, 0])
-        try:
-            img = mpimg.imread(item["grid_path"])
-            ax_img.imshow(img)
-        except Exception as e:
-            ax_img.text(
-                0.5, 0.5, f"Error loading image: {str(e)}", ha="center", va="center"
-            )
-        ax_img.axis("off")
-
-        # Right side: Text content
-        ax_text = fig.add_subplot(gs[0, 1])
-        ax_text.axis("off")
-
-        # Prepare text content
-        is_correct = item["true_label"] == item["pred_label"]
-        correct_str = "✓ CORRECT" if is_correct else "✗ INCORRECT"
-        color = "green" if is_correct else "red"
-
-        title = (
-            f"File: {item['file_path']}\n"
-            f"True: {item['true_label']} → Predicted: {item['pred_label']}\n"
-            f"{correct_str}"
-        )
-        ax_img.set_title(title, fontsize=14, color=color)
-
-        # Combine all text content
-        text_parts = [
-            "Tags:",
-            "• " + "\n• ".join(item["tags"]) + "\n",
-            "Reasoning:",
-            item["reasoning"] + "\n",
-        ]
-
-        if item["intermediates"]:
-            text_parts.append("Intermediate Steps:")
-            for key, value in item["intermediates"].items():
-                text_parts.extend([f"\n{key}:", value])
-
-        # Wrap text and join with newlines
-        wrapped_text = []
-        for line in text_parts:
-            if line.endswith(":"):
-                wrapped_text.append(line)
-            else:
-                wrapped_text.extend(wrap(line, width=60))
-
-        text_content = "\n".join(wrapped_text)
-
-        # Add text to plot
-        ax_text.text(
-            0.02,
-            0.98,
-            text_content,
-            va="top",
-            ha="left",
-            fontsize=11,
-            linespacing=1.2,
-            transform=ax_text.transAxes,
-        )
-
-        plt.tight_layout(pad=1.0)
-        plt.show()
-
-
-def analyze_predictions(results_dict):
-    """
-    Generate a summary of prediction patterns.
-
-    Parameters:
-    results_dict (dict): Dictionary containing classification results
-
-    Returns:
-    dict: Summary statistics and patterns
-    """
     summary = defaultdict(
         lambda: {
             "total": 0,

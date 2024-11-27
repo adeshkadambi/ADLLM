@@ -89,15 +89,13 @@ class ADLClassifier:
 
     def _encode_image(self, img: Image.Image) -> str:
         """Convert image to base64 string."""
-        # Resize image to have a maximum dimension of 1120
+
         img_resized = self._resize_image(img, max_dim=1120)
 
-        # Convert image to bytes
         buffered = BytesIO()
         img_resized.save(buffered, format="PNG")
         img_bytes = buffered.getvalue()
 
-        # Encode image to base64 string
         return base64.b64encode(img_bytes).decode("utf-8")
 
     def _create_image_grid(
@@ -201,7 +199,7 @@ class ADLClassifier:
         self,
         frame_descriptions: list[str],
         image_grid: Image.Image,
-    ) -> str:
+    ) -> dict:
         """Classify ADL based on frame descriptions and context synthesis."""
 
         grid_base64 = self._encode_image(image_grid)
@@ -226,14 +224,11 @@ class ADLClassifier:
         Predict ADL based on sampled frames.
         """
         image_grid = self._create_image_grid(sampled_frames)
-
-        # get frame descriptions, synthesize context, and classify ADL
         frame_descriptions = self.analyse_frames(
             sampled_frames, sampled_indices, total_frames
         )
         adl_classification = self.classify_adl(frame_descriptions, image_grid)
 
-        # parse response
         try:
             adl_classification = json.loads(adl_classification)
             adl_classification["Image_Grid"] = image_grid

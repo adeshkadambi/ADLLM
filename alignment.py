@@ -1,8 +1,8 @@
 """
-Build UI in streamlit where you can upload a results file, take a 
-random stratified sample of 25 videos per class (25*7 = 175 videos). 
-For each video, show the grid and the reasoning side by side. 
-Assign a rating and any notes. Save the results.
+Runs a Streamlit app for manual evaluation of reasoning alignment.
+
+Usage:
+`streamlit run alignment.py`
 """
 
 import json
