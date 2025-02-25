@@ -1,9 +1,9 @@
-import os
-import enum
-import random
 import concurrent.futures
-from pathlib import Path
+import enum
+import os
+import random
 from collections.abc import Callable
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -13,8 +13,9 @@ from PIL import Image
 class SamplingStrategy(enum.StrEnum):
     UNIFORM = "uniform"
     RANDOM = "random"
+    MOTION_GUIDED = "motion_guided"
 
-    def get_frame_indices(self, total_frames: int, num_frames: int) -> list[int]:
+    def get_frame_indices(self, total_frames: int, num_frames: int, cap=None) -> list[int]:
         """Get frame indices based on the sampling strategy."""
         if num_frames > total_frames:
             raise ValueError(f"Cannot sample {num_frames} frames from {total_frames} total frames")
@@ -22,8 +23,11 @@ class SamplingStrategy(enum.StrEnum):
         strategies: dict[SamplingStrategy, Callable] = {
             SamplingStrategy.UNIFORM: self._uniform_sampling,
             SamplingStrategy.RANDOM: self._random_sampling,
+            SamplingStrategy.MOTION_GUIDED: self._motion_guided_sampling,
         }
 
+        if self == SamplingStrategy.MOTION_GUIDED and cap is not None:
+            return strategies[self](total_frames, num_frames, cap)
         return strategies[self](total_frames, num_frames)
 
     @staticmethod
@@ -35,6 +39,56 @@ class SamplingStrategy(enum.StrEnum):
     @staticmethod
     def _random_sampling(total_frames: int, num_frames: int) -> list[int]:
         return sorted(random.sample(range(total_frames), num_frames))
+
+    @staticmethod
+    def _motion_guided_sampling(
+        total_frames: int, num_frames: int, cap, mu: float = 0.5
+    ) -> list[int]:
+        """
+        Implements motion-guided sampling with efficient frame reading and motion calculation.
+        """
+        motion_magnitudes = []
+        num_frames = num_frames + 1
+
+        # Read first frame
+        ret, prev_frame = cap.read()
+        if not ret:
+            return SamplingStrategy.UNIFORM.get_frame_indices(total_frames, num_frames)
+
+        # Sequential frame reading
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            # Calculate frame difference using numpy operations
+            diff = np.abs(frame.astype(np.int16) - prev_frame.astype(np.int16))
+            magnitude = np.sum(diff)
+            motion_magnitudes.append(magnitude)
+
+            prev_frame = frame
+
+        # Rest of the processing remains the same
+        if motion_magnitudes:
+            motion_magnitudes = np.array(motion_magnitudes)
+            motion_magnitudes = motion_magnitudes / np.sum(motion_magnitudes)
+            motion_magnitudes = np.power(motion_magnitudes, mu)
+            motion_magnitudes = motion_magnitudes / np.sum(motion_magnitudes)
+
+            cum_distribution = np.cumsum(motion_magnitudes)
+            splits = np.linspace(0, 1, num_frames + 1)[1:-1]
+            frame_indices = []
+
+            for split in splits:
+                frame_idx = np.searchsorted(cum_distribution, split)
+                frame_indices.append(frame_idx)
+
+            if len(frame_indices) > num_frames:
+                frame_indices = frame_indices[:num_frames]
+
+            return sorted(frame_indices)
+
+        return SamplingStrategy.UNIFORM.get_frame_indices(total_frames, num_frames)
 
 
 def _convert_frame_to_pil(frame: np.ndarray) -> Image.Image:
@@ -99,7 +153,10 @@ def extract_frames(
         raise ValueError(f"Requested frames ({num_frames}) exceeds video length ({total_frames})")
 
     # Get frame indices based on sampling method
-    frame_indices = sampling_method.get_frame_indices(total_frames, num_frames)
+    if sampling_method == SamplingStrategy.MOTION_GUIDED:
+        frame_indices = sampling_method.get_frame_indices(total_frames, num_frames, cap)
+    else:
+        frame_indices = sampling_method.get_frame_indices(total_frames, num_frames)
 
     # Create output directory if saving frames
     output_dir = None
