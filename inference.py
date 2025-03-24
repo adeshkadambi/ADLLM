@@ -208,9 +208,7 @@ class ADLClassifier:
         sampled_indices: list[int],
         total_frames: int,
     ) -> dict:
-        """
-        Predict ADL based on sampled frames.
-        """
+        """Predict ADL based on sampled frames."""
         image_grid = self._create_image_grid(sampled_frames)
         frame_descriptions = self.analyse_frames(sampled_frames, sampled_indices, total_frames)
         adl_classification = self.classify_adl(frame_descriptions, image_grid)

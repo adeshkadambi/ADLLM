@@ -274,10 +274,10 @@ class BatchProcessor:
                 video_path, sampled_frames, sampled_indices, total_frames
             )
 
-            if error:
-                self.logger.error("Error processing %s: %s", rel_path, error)
-                self.results[rel_path] = {"error": error}
-
+            if error or response is None:
+                error_message = error or "Unknown error (response is None)"
+                self.logger.error("Error processing %s: %s", rel_path, error_message)
+                self.results[rel_path] = {"error": error_message}
                 self.processed_videos.add(rel_path)
 
             else:
